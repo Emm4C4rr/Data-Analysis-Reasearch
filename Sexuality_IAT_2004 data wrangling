@@ -37,25 +37,27 @@ del [
     df['Mn_RT_correct_3'], df['Mn_RT_correct_4'],
     df['Mn_RT_correct_6'], df['Mn_RT_correct_7'],
     df['SD_correct_3'], df['SD_correct_4'],
-    df['SD_correct_6'], df['SD_correct_7']
+    df['SD_correct_6'], df['SD_correct_7'],
+    df['contactdaily'], df['contactfamily'],
+    df['contactfriend'], df['contactfriendlydaily'],
+    df['contactmet'], df['election'],
+    df['lifestyle'], df['marriagelegal_7'],
+    df['marriagerights_3'], df['relationslegal_3'],
+    df['sexualityorigin']
 ]
 
 # filtering out participants
-   # keeping only completed sessions
 status = 'C'
 df = df[df['session_status'] == status]
 del df['session_status']
 
-   # removing other/unknown
 ethnic = ['6']
 df = df[~df['ethnic'].isin(ethnic)]
 
-   # removing participants with errors greater than 20%
 df['PCT_error_3467'] = pd.to_numeric(df['PCT_error_3467'], errors='coerce')
 lower_bound = 20
 df = df[(df['PCT_error_3467'] <= lower_bound)]
 
-   # keeping only US countries
 residence = 'US'
 df = df[df['countryres'] == residence]
 del df['countryres']
@@ -74,3 +76,7 @@ df = df.dropna(subset=['age', 'sex', 'sexuality_3',
 
 # renaming varibles
 df= df.rename(columns={'D_biep.Straight_Good_all': 'd_score'})
+
+print(df)
+
+df.to_csv('Sexuality_IAT_2004.csv')
