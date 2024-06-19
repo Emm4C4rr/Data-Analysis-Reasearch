@@ -1,0 +1,76 @@
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv(r'C:\Users\emmam\OneDrive\Documents\UON\YR2 SUMMER\Data wrangling samples\Sexuality IAT.public.2004.csv')
+
+pd.set_option('display.max_columns', None)
+
+print(df.info(verbose=True))
+
+# removing unnecessary columns
+del [
+    df['study_name'],
+    df['date'], df['month'], df['day'],
+    df['year'], df['hour'], df['weekday'],
+    df['num'], df['sexuality'], df['N_3467'],
+    df['Order'], df['Side_Good_34'],
+    df['Side_Straight_34'], df['pct_300'],
+    df['pct_400'], df['pct_2K'], df['pct_3K'],
+    df['pct_4K'], df['Mn_RT_all_3'],
+    df['Mn_RT_all_4'], df['Mn_RT_all_6'],
+    df['Mn_RT_all_7'], df['N_3'], df['N_4'],
+    df['N_5'], df['N_6'], df['N_7'],
+    df['D_biep.Straight_Good_36'],
+    df['D_biep.Straight_Good_47'],
+    df['N_ERROR_3'], df['N_ERROR_4'],
+    df['N_ERROR_6'], df['N_ERROR_7'],
+    df['user_id'], df['previous_session_id'],
+    df['previous_session_schema'], df['edu'],
+    df['politicalid'], df['ems1_7'], df['ems1_4'],
+    df['ems4_7'], df['ems4_4'], df['ims3_7'],
+    df['ims3_4'], df['ims4_4'], df['aap1_7'],
+    df['aap1_4'], df['aap7_7'], df['aap7_4'],
+    df['att'], df['marriagelegal'],
+    df['marriagerights'], df['relationslegal'],
+    df['SD_all_3'], df['SD_all_4'],
+    df['SD_all_6'], df['SD_all_7'],
+    df['Mn_RT_correct_3'], df['Mn_RT_correct_4'],
+    df['Mn_RT_correct_6'], df['Mn_RT_correct_7'],
+    df['SD_correct_3'], df['SD_correct_4'],
+    df['SD_correct_6'], df['SD_correct_7']
+]
+
+# filtering out participants
+   # keeping only completed sessions
+status = 'C'
+df = df[df['session_status'] == status]
+del df['session_status']
+
+   # removing other/unknown
+ethnic = ['6']
+df = df[~df['ethnic'].isin(ethnic)]
+
+   # removing participants with errors greater than 20%
+df['PCT_error_3467'] = pd.to_numeric(df['PCT_error_3467'], errors='coerce')
+lower_bound = 20
+df = df[(df['PCT_error_3467'] <= lower_bound)]
+
+   # keeping only US countries
+residence = 'US'
+df = df[df['countryres'] == residence]
+del df['countryres']
+
+# removing missing values within columns
+df = df.replace(r'^\s*$', np.nan, regex=True)
+df = df.dropna(subset=['age', 'sex', 'sexuality_3',
+                       'D_biep.Straight_Good_all',
+                       'Mn_RT_all_3467', 'PCT_error_3467',
+                       'Stimuli', 'edu_13', 'politicalid_6',
+                       'STATE', 'ems1', 'ems4', 'ims3', 'ims4',
+                       'aap1', 'aap7', 'att_5', 'tgaymen',
+                       'tgaywomen', 'tstraightmen',
+                       'tstraightwomen'
+                       ])
+
+# renaming varibles
+df= df.rename(columns={'D_biep.Straight_Good_all': 'd_score'})
