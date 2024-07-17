@@ -134,14 +134,10 @@ df2['total_Offenses3'] = df2.apply(TotalOffences_rates, axis=1, lookup_df=df5)
 df2 = df2.dropna(subset=['Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses',
                          'Pornographic_Offenses', 'Prostitution_Offenses'])
  # removing comma in numbers
-df2['Assault_Offenses'] = df2['Assault_Offenses'].str.replace(',', '')
-df2['Sex_Offenses'] = df2['Sex_Offenses'].str.replace(',', '')
-df2['Drug_Offenses'] = df2['Drug_Offenses'].str.replace(',', '')
-df2['Pornographic_Offenses'] = df2['Pornographic_Offenses'].str.replace(',', '')
-df2['Prostitution_Offenses'] = df2['Prostitution_Offenses'].str.replace(',', '')
-df2['total_Offenses1'] = df2['total_Offenses1'].str.replace(',', '')
-df2['total_Offenses2'] = df2['total_Offenses2'].str.replace(',', '')
-df2['total_Offenses3'] = df2['total_Offenses3'].str.replace(',', '')
+offences = ['Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses',
+            'Pornographic_Offenses', 'Prostitution_Offenses',
+            'total_Offenses1','total_Offenses2', 'total_Offenses3']
+df2[offences] = df2[offences].replace(',', '', regex=True)
 
  # calculating total crime that are of intrest
 Total_SCrimes = df2[['Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses',
