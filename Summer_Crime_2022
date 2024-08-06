@@ -1,13 +1,11 @@
 import pandas as pd
 import numpy as np
-from scipy.stats import zscore
 
 df = pd.read_csv(r'C:\Users\emmam\OneDrive\Documents\UON\YR2 SUMMER\Data wrangling samples\Sexuality_IAT.public.2022.csv')
 
 pd.set_option('display.max_columns', None)
 
 print(df.info(verbose=True))
-print(df)
 
 # removing missing values within columns
 df = df.replace(r'^\s*$', np.nan, regex=True)
@@ -27,11 +25,17 @@ gayexposure = df[['contactfamily_num', 'contactfriend_num',
                   'contactfriendly_num', 'contactmet_num']].apply(pd.to_numeric)
 df['Overallgayexposure'] = gayexposure.sum(axis=1)
 
-# combining opinions on same-sex rights - low score = pro same-sex rights vice versa
-Rights = df[['adoptchild', 'marriagerights_3num',
-             'relationslegal_3num', 'serverights']].apply(pd.to_numeric)
-Rights.replace(3, 0)
-df['Same_sexRights'] = Rights.sum(axis=1)
+ # gay rights variable
+Rights = ['adoptchild', 'marriagerights_3num',
+             'relationslegal_3num', 'serverights']
+  #removing no opinion responses
+df[Rights] = df[Rights][~df[Rights].isin(['3'])]
+  # swapping servers rights values so they align with other varibles (will no represent - 1 = pro rights, 2 = against rights)
+df['serverights'] = df['serverights'].replace('2', '1')
+  # combining variables with a -ve and +ve scale
+df[Rights] = df[Rights].replace('2', '-1', regex=True)
+df[Rights] = df[Rights].apply(pd.to_numeric)
+df['Same_sexRights'] = df[Rights].sum(axis=1)
 
  # calulating age of participants
 df['age'] = 2024 - df['birthyear'].apply(pd.to_numeric)
@@ -42,7 +46,6 @@ for old, new in brackets.items():
     df['genderIdentity'] = df['genderIdentity'].str.replace(old, new)
 
 # filtering out participants
-
  # keeping only participants who completed everything
 status = 'C'
 df = df[df['session_status'] == status]
@@ -61,7 +64,7 @@ residence = '1'
 df = df[df['countryres_num'] == residence]
 
 # keeping only necessary columns
-df2 = df[['session_id', 'age', 'birthSex', 'genderIdentity',
+df2 = df[['age', 'birthSex',
           'sexuality_5', 'raceomb_002', 'D_biep.Straight_Good_all',
           'Mn_RT_all_3467', 'PCT_error_3467', 'Stimuli', 'Overallgayexposure',
           'Same_sexRights', 'att_7', 'Tgaymen', 'Tgayleswomen',
@@ -70,11 +73,9 @@ df2 = df[['session_id', 'age', 'birthSex', 'genderIdentity',
           'STATE', 'MSANo', 'CountyNo', 'MSAName']]
 
 # renaming varibles
-df2 = df2.rename(columns={'D_biep.Straight_Good_all': 'd_score'})
-df2 = df2.rename(columns={'STATE': 'State'})
-df2 = df2.rename(columns={'raceomb_002': 'race'})
-
-print(df2)
+df2 = df2.rename(columns={'D_biep.Straight_Good_all': 'd_score', 'STATE': 'State',
+                          'raceomb_002': 'race', 'occuSelfDetail': 'occupation',
+                          'edu_14': 'education'})
 
 # CRIME DATASET - adding column for specific offence and assigning participants a metric based on state
 df3 = pd.read_csv(r'C:\Users\emmam\OneDrive\Documents\UON\YR2 SUMMER\Data wrangling samples\Crimes_Against_Persons_Offenses_Offense_Category_by_State_2022.csv')
@@ -102,30 +103,26 @@ df5['State'] = df5['State'].map(state_abbreviation_map).fillna(df5['State'])
 def Assualt_rates(row, lookup_df):
     crime_level = lookup_df.loc[lookup_df['State'] == row['State'], 'Assault\nOffenses']
     return crime_level.values[0] if not crime_level.empty else np.nan
+df2['Assault_Offenses'] = df2.apply(Assualt_rates, axis=1, lookup_df=df3)
 def SexOffense_rates(row, lookup_df):
     crime_level = lookup_df.loc[lookup_df['State'] == row['State'], 'Sex\nOffenses']
     return crime_level.values[0] if not crime_level.empty else np.nan
+df2['Sex_Offenses'] = df2.apply(SexOffense_rates, axis=1, lookup_df=df3)
 def Drug_rates(row, lookup_df):
     crime_level = lookup_df.loc[lookup_df['State'] == row['State'], 'Drug/\nNarcotic\nOffenses']
     return crime_level.values[0] if not crime_level.empty else np.nan
+df2['Drug_Offenses'] = df2.apply(Drug_rates, axis=1, lookup_df=df4)
 def Pornographic_rates(row, lookup_df):
     crime_level = lookup_df.loc[lookup_df['State'] == row['State'], 'Pornography/\nObscene\nMaterial']
     return crime_level.values[0] if not crime_level.empty else np.nan
+df2['Pornographic_Offenses'] = df2.apply(Pornographic_rates, axis=1, lookup_df=df4)
 def Prostitution_rates(row, lookup_df):
     crime_level = lookup_df.loc[lookup_df['State'] == row['State'], 'Prostitution\nOffenses']
     return crime_level.values[0] if not crime_level.empty else np.nan
-def Prostitution_rates(row, lookup_df):
-    crime_level = lookup_df.loc[lookup_df['State'] == row['State'], 'Prostitution\nOffenses']
-    return crime_level.values[0] if not crime_level.empty else np.nan
+df2['Prostitution_Offenses'] = df2.apply(Prostitution_rates, axis=1, lookup_df=df4)
 def TotalOffences_rates(row, lookup_df):
     crime_level = lookup_df.loc[lookup_df['State'] == row['State'], 'Total \nOffenses']
     return crime_level.values[0] if not crime_level.empty else np.nan
-
-df2['Assault_Offenses'] = df2.apply(Assualt_rates, axis=1, lookup_df=df3)
-df2['Sex_Offenses'] = df2.apply(SexOffense_rates, axis=1, lookup_df=df3)
-df2['Drug_Offenses'] = df2.apply(Drug_rates, axis=1, lookup_df=df4)
-df2['Pornographic_Offenses'] = df2.apply(Pornographic_rates, axis=1, lookup_df=df4)
-df2['Prostitution_Offenses'] = df2.apply(Prostitution_rates, axis=1, lookup_df=df4)
 df2['total_Offenses1'] = df2.apply(TotalOffences_rates, axis=1, lookup_df=df3)
 df2['total_Offenses2'] = df2.apply(TotalOffences_rates, axis=1, lookup_df=df4)
 df2['total_Offenses3'] = df2.apply(TotalOffences_rates, axis=1, lookup_df=df5)
@@ -136,7 +133,7 @@ df2 = df2.dropna(subset=['Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses',
  # removing comma in numbers
 offences = ['Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses',
             'Pornographic_Offenses', 'Prostitution_Offenses',
-            'total_Offenses1','total_Offenses2', 'total_Offenses3']
+            'total_Offenses1', 'total_Offenses2', 'total_Offenses3']
 df2[offences] = df2[offences].replace(',', '', regex=True)
 
  # calculating total crime that are of intrest
@@ -147,19 +144,31 @@ df2['Total_SCrimes'] = Total_SCrimes.sum(axis=1)
  # caluclating total crime for each state then removing categories
 Total_Crime_rates = df2[['total_Offenses1', 'total_Offenses2', 'total_Offenses3']].apply(pd.to_numeric)
 df2['Total_Crime_rates'] = Total_Crime_rates.sum(axis=1)
-del df2['total_Offenses1']
-del df2['total_Offenses2']
-del df2['total_Offenses3']
+df2 = df2.drop(columns=Total_Crime_rates)
 
 #converting to csv file
 print(df2)
 df2.to_csv('Sexuality_Crime_2022.csv')
 
-# transforming to z-scores
-dfz = df2[['age', 'd_score', 'Mn_RT_all_3467', 'PCT_error_3467', 'Overallgayexposure',
-           'Same_sexRights', 'att_7', 'Tgaymen', 'Tgayleswomen', 'Tstraightmen',
-           'Tstraightwomen', 'religionid', 'politicalid_7', 'Assault_Offenses',
-           'Sex_Offenses', 'Drug_Offenses', 'Pornographic_Offenses',
-           'Prostitution_Offenses', 'Total_SCrimes', 'Total_Crime_rates']].apply(pd.to_numeric)
-dfz = dfz.apply(zscore)
-print(dfz)
+# Descriptives
+print('totals')
+print(df2['age'].value_counts(), df2['birthSex'].value_counts(), df2['race'].value_counts(),
+      df2['occupation'].value_counts(), df2['religionid'].value_counts(), df2['education'].value_counts(), df2['politicalid_7'].value_counts(),
+      df2['State'].value_counts())
+
+dfn = ['age', 'd_score', 'Mn_RT_all_3467', 'PCT_error_3467', 'Overallgayexposure',
+       'Same_sexRights', 'att_7', 'Tgaymen', 'Tgayleswomen', 'Tstraightmen', 'Tstraightwomen',
+       'politicalid_7', 'Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses', 'Pornographic_Offenses',
+       'Prostitution_Offenses', 'Total_SCrimes', 'Total_Crime_rates']
+df2[dfn] = df2[dfn].apply(pd.to_numeric)
+
+print('Mean')
+print(df2[dfn].mean())
+print('Median')
+print(df2[dfn].median())
+print('SD')
+print(df2[dfn].std())
+print('Min')
+print(df2[dfn].min())
+print('Max')
+print(df2[dfn].max())
