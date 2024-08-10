@@ -52,13 +52,6 @@ str(df3$att_7)
 str(pp_data)
 pdense2 <- ppc_dens_overlay(y = df3$att_7, yrep = pp_data)
 
-skew <- function(y){
-  n <- length(y)
-  dif <- y - mean (y)
-  skew_stat <- (sqrt(n-1)/(n-2))*n *(sum(dif^3)/(sum(dif^2)^1.5))
-  return(skew_stat)
-}
-
 ppc_stat(y = df3$att_7, yrep = posterior_predict(model, ndraws = 1000),
          stat = 'skew')
 
