@@ -3,8 +3,6 @@ import numpy as np
 
 df = pd.read_csv(r'C:\Users\emmam\OneDrive\Documents\UON\YR2 SUMMER\Data wrangling samples\Sexuality_IAT.public.2022.csv')
 
-pd.set_option('display.max_columns', None)
-
 print(df.info(verbose=True))
 
 # removing missing values within columns
@@ -45,6 +43,7 @@ brackets = {"[": "", "]": ""}
 for old, new in brackets.items():
     df['genderIdentity'] = df['genderIdentity'].str.replace(old, new)
 
+
 # filtering out participants
  # keeping only participants who completed everything
 status = 'C'
@@ -68,14 +67,12 @@ df2 = df[['age', 'birthSex',
           'sexuality_5', 'raceomb_002', 'D_biep.Straight_Good_all',
           'Mn_RT_all_3467', 'PCT_error_3467', 'Stimuli', 'Overallgayexposure',
           'Same_sexRights', 'att_7', 'Tgaymen', 'Tgayleswomen',
-          'Tstraightmen', 'Tstraightwomen', 'occuSelfDetail',
-          'religionid', 'edu_14', 'politicalid_7', 'countrycit_num',
-          'STATE', 'MSANo', 'CountyNo', 'MSAName']]
+          'Tstraightmen', 'Tstraightwomen', 'religionid', 'edu_14',
+          'politicalid_7', 'STATE', 'MSANo', 'CountyNo', 'MSAName']]
 
 # renaming varibles
 df2 = df2.rename(columns={'D_biep.Straight_Good_all': 'd_score', 'STATE': 'State',
-                          'raceomb_002': 'race', 'occuSelfDetail': 'occupation',
-                          'edu_14': 'education'})
+                          'raceomb_002': 'race', 'edu_14': 'education'})
 
 # CRIME DATASET - adding column for specific offence and assigning participants a metric based on state
 df3 = pd.read_csv(r'C:\Users\emmam\OneDrive\Documents\UON\YR2 SUMMER\Data wrangling samples\Crimes_Against_Persons_Offenses_Offense_Category_by_State_2022.csv')
@@ -153,8 +150,8 @@ df2.to_csv('Sexuality_Crime_2022.csv')
 # Descriptives
 print('totals')
 print(df2['age'].value_counts(), df2['birthSex'].value_counts(), df2['race'].value_counts(),
-      df2['occupation'].value_counts(), df2['religionid'].value_counts(), df2['education'].value_counts(), df2['politicalid_7'].value_counts(),
-      df2['State'].value_counts())
+      df2['religionid'].value_counts(), df2['education'].value_counts(), df2['sexuality_5'].value_counts(),
+      df2['politicalid_7'].value_counts(), df2['State'].value_counts())
 
 dfn = ['age', 'd_score', 'Mn_RT_all_3467', 'PCT_error_3467', 'Overallgayexposure',
        'Same_sexRights', 'att_7', 'Tgaymen', 'Tgayleswomen', 'Tstraightmen', 'Tstraightwomen',
