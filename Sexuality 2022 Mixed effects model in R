@@ -1,0 +1,339 @@
+library(reticulate)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(performance)
+library(datawizard)
+library(ggplot2)
+
+source_python('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/data wrangling samples/Sexuality_Crime_2022.py')
+
+df <- py$df2
+df <- as.data.frame(df)
+
+# adjusting variables
+df2 <- df%>%
+  mutate(att_7 = standardize(att_7), Assault_Offenses = standardize(Assault_Offenses), Sex_Offenses = standardize(Sex_Offenses),
+         Drug_Offenses = standardize(Drug_Offenses), Pornographic_Offenses = standardize(Pornographic_Offenses),
+         Prostitution_Offenses = standardize(Prostitution_Offenses), age = standardize(age), religion = standardize(religionid),
+         politics = standardize(politicalid_7))
+
+df3 <- df2%>%
+  mutate(sex = factor(birthSex), state = factor(State), education = factor(education), sexuality = factor(sexuality_5))
+
+# Fit model
+model <- lmerTest::lmer(att_7 ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + education + sexuality +
+                           (1 | state), data = df3)
+
+# overall model diagnostics
+check_model(model)
+
+# results
+summary(model)
+
+df4 <- df3%>%
+  mutate(race = factor(race))
+
+# Fit model adding race
+model2 <- lmerTest::lmer(att_7 ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality +
+                           race + (1 | state), data = df4)
+
+check_model(model2)
+summary(model2)
+
+# plot
+ggplot(df, aes(x = att_7, y = age, color = State)) +
+  geom_smooth(data = df, aes(x = att_7, y = age),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = att_7, y = birthSex, color = State)) +
+  geom_smooth(data = df, aes(x = att_7, y = birthSex),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = att_7, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = att_7, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = att_7, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = att_7, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = att_7, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = att_7, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+# altering criteon variable
+ # att_7 broken down to specfic sexuality and gender
+model1.1 <- lmerTest::lmer(standardise(Tgaymen) ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality +
+                           (1 | state), data = df3)
+
+check_model(model1.1)
+summary(model1.1)
+
+ggplot(df, aes(x = Tgaymen, y = birthSex, color = State)) +
+  geom_smooth(data = df, aes(x = Tgaymen, y = birthSex),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tgaymen, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = Tgaymen, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tgaymen, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = Tgaymen, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tgaymen, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = Tgaymen, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+model1.2 <- lmerTest::lmer(standardise(Tgayleswomen) ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality +
+                           (1 | state), data = df3)
+
+check_model(model1.2)
+summary(model1.2)
+
+# plot
+ggplot(df, aes(x = Tgayleswomen, y = age, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = age),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tgayleswomen, y = birthSex, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = birthSex),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tgayleswomen, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tgayleswomen, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightmen, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+model1.3 <- lmerTest::lmer(standardise(Tstraightmen) ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality +
+                           (1 | state), data = df3)
+
+check_model(model1.3)
+summary(model1.3)
+
+# plot
+ggplot(df, aes(x = Tstraightmen, y = Assault_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = Assault_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightmen, y = Prostitution_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = Prostitution_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightmen, y = age, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = age),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightmen, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightmen, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightmen, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightmen, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+model1.4 <- lmerTest::lmer(standardise(Tstraightwomen) ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality +
+                           (1 | state), data = df3)
+
+check_model(model1.4)
+summary(model1.4)
+
+# plot
+ggplot(df, aes(x = Tstraightwomen, y = Assault_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = Assault_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = Sex_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = Sex_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = Drug_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = Drug_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = Pornographic_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = Pornographic_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = age, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = age),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = birthSex, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = birthSex),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Tstraightwomen, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = Tstraightwomen, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ # implicit opionions
+model3 <- lmerTest::lmer(standardise(d_score) ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality
+                           + (1 | state), data = df3)
+
+check_model(model3)
+summary(model3)
+
+# plot
+ggplot(df, aes(x = d_score, y = age, color = State)) +
+  geom_smooth(data = df, aes(x = d_score, y = age),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = d_score, y = birthSex, color = State)) +
+  geom_smooth(data = df, aes(x = d_score, y = birthSex),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = d_score, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = d_score, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = d_score, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = d_score, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = d_score, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = d_score, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+
+ # overall gay exposure
+model4 <- lmerTest::lmer(standardise(Overallgayexposure) ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality
+                           + (1 | state), data = df3)
+
+check_model(model4)
+summary(model4)
+
+# plot
+ggplot(df, aes(x = Overallgayexposure, y = Sex_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Overallgayexposure, y = Sex_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Overallgayexposure, y = age, color = State)) +
+  geom_smooth(data = df, aes(x = Overallgayexposure, y = age),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Overallgayexposure, y = birthSex, color = State)) +
+  geom_smooth(data = df, aes(x = Overallgayexposure, y = birthSex),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Overallgayexposure, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = Overallgayexposure, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Overallgayexposure, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = Overallgayexposure, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Overallgayexposure, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = Overallgayexposure, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+model5 <- lmerTest::lmer(standardise(Same_sexRights) ~ Assault_Offenses + Sex_Offenses + Drug_Offenses +
+                           Pornographic_Offenses + Prostitution_Offenses + age +
+                           sex + religion + politics + sexuality
+                           + (1 | state), data = df3)
+
+check_model(model5)
+summary(model5)
+
+# plot
+ggplot(df, aes(x = Same_sexRights, y = Drug_Offenses, color = State)) +
+  geom_smooth(data = df, aes(x = Same_sexRights, y = Drug_Offenses),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Same_sexRights, y = age, color = State)) +
+  geom_smooth(data = df, aes(x = Same_sexRights, y = age),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Same_sexRights, y = religionid, color = State)) +
+  geom_smooth(data = df, aes(x = Same_sexRights, y = religionid),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Same_sexRights, y = politicalid_7, color = State)) +
+  geom_smooth(data = df, aes(x = Same_sexRights, y = politicalid_7),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
+
+ggplot(df, aes(x = Same_sexRights, y = sexuality_5, color = State)) +
+  geom_smooth(data = df, aes(x = Same_sexRights, y = sexuality_5),
+              method = 'lm', inherit.aes = FALSE, se = FALSE) +
+  geom_smooth(method = 'lm') + geom_point(alpha=0.5)
