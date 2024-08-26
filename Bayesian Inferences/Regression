@@ -1,0 +1,183 @@
+library(foreign)
+library(datawizard)
+library(tidyverse)
+library(psych)
+library(rstanarm)
+library(bayestestR)
+library(bayesplot)
+library(insight)
+library(patchwork)
+library(ggplot2)
+library(loo)
+library(brms)
+
+# dataset 1 - signficant - hs and iq, non-significant - work and age
+url <- URLencode("http://www.stat.columbia.edu/~gelman/arm/examples/child.iq/kidiq.dta")
+cognitive <- read.dta(url)
+
+cognitive$mom_work = as.numeric(cognitive$mom_work > 1)
+cognitive$mom_hs = as.numeric(cognitive$mom_hs > 0)
+
+head(cognitive)
+describe(cognitive)
+
+# visualisation - scatterplots and violin plots for binary variables
+v1 <- ggplot(cognitive, aes(x = factor(mom_hs), y = kid_score)) +
+  geom_violin()
+
+v2 <- ggplot(cognitive, aes(x = factor(mom_work), y = kid_score)) +
+  geom_violin()
+
+v3 <- ggplot()+ geom_point(data = cognitive, aes(y = kid_score, x = mom_age))+ geom_smooth()
+
+v4 <- ggplot()+ geom_point(data = cognitive, aes(y = kid_score, x = mom_iq))+ geom_smooth()
+
+(v1 + v2)/ (v3 + v4)
+
+# stan model - normal gaussian
+model <- stan_glm(kid_score~., data=cognitive)
+
+print(model, digits = 3)
+summary(model)
+
+# posterior checks
+post <- get_parameters(model)
+
+p1 <- mcmc_dens(model, pars = c("mom_hs"))+
+  vline_at(median(post$mom_hs))
+
+p2 <- mcmc_dens(model, pars = c("mom_iq"))+
+  vline_at(median(post$mom_iq))
+
+p3 <- mcmc_dens(model, pars = c("mom_work"))+
+  vline_at(median(post$mom_work))
+
+p4 <- mcmc_dens(model, pars = c("mom_age"))+
+  vline_at(median(post$mom_age))
+
+(p1 + p2)/ (p3 + p4)
+
+describe_posterior(model)
+pp_check(model, ndraws = 100)
+
+# influential points and outliers
+loo <- loo(model, cores = getOption("mc.cores", 1))
+print(loo)
+plot(loo)
+
+# inferences
+rope(post$mom_hs)
+rope(post$mom_iq)
+rope(post$mom_work)
+rope(post$mom_age)
+
+# brm model - allows for student distrubtuon to account for outliers
+modelb <- brm(kid_score ~ ., data = cognitive, family = student())
+summary(modelb)
+
+# posterior checks
+plot(modelb)
+describe_posterior(modelb)
+pp_check(modelb, ndraws = 100, 'stat')
+
+# influential points and outliers
+loob <- loo(modelb, cores = getOption("mc.cores", 1))
+print(loob)
+plot(loob)
+
+# inferences
+postb <- get_parameters(modelb)
+
+rope(postb$mom_hs)
+rope(postb$mom_iq)
+rope(postb$mom_work)
+rope(postb$mom_age)
+
+# lab report 4 Yr2 - McCollough Effect - non-signficant (all)
+df <- read_csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/Bayesian Analysis/RegressionData.csv')
+
+head(df)
+describe(df)
+
+# scaling variables
+df2 <- df%>%
+  mutate(ME1_4 = standardize(ME1_4), UE = standardize(UE), CD = standardize(CD),
+         IN = standardize(IN), IA = standardize(IA), Ishihara = standardize(Ishihara))
+
+# visualisation - scatterplots
+v6 <- ggplot()+ geom_point(data = df2, aes(y = ME1_4, x = UE))+ geom_smooth()
+
+v7 <- ggplot()+ geom_point(data = df2, aes(y = ME1_4, x = CD))+ geom_smooth()
+
+v8 <- ggplot()+ geom_point(data = df2, aes(y = ME1_4, x = IN))+ geom_smooth()
+
+v9 <- ggplot()+ geom_point(data = df2, aes(y = ME1_4, x = IA))+ geom_smooth()
+
+v10 <- ggplot()+ geom_point(data = df2, aes(y = ME1_4, x = Ishihara))+ geom_smooth()
+
+(v6 + v7 + v8)/ (v9 + v10)
+
+# stan model - normal gaussian
+model2 <- stan_glm(ME1_4~ UE + CD + IN + IA + Ishihara, data=df2)
+
+print(model2, digits = 3)
+summary(model2)
+
+# posterior checks
+post2 <- get_parameters(model2)
+
+p6 <- mcmc_dens(model2, pars = c("UE"))+
+  vline_at(median(post2$UE))
+
+p7 <- mcmc_dens(model2, pars = c("CD"))+
+  vline_at(median(post2$CD))
+
+p8 <- mcmc_dens(model2, pars = c("IN"))+
+  vline_at(median(post2$IN))
+
+p9 <- mcmc_dens(model2, pars = c("IA"))+
+  vline_at(median(post2$IA))
+
+p10 <- mcmc_dens(model2, pars = c("Ishihara"))+
+  vline_at(median(post2$Ishihara))
+
+(p6 + p7 + p8)/ (p9 + p10)
+
+describe_posterior(model2)
+pp_check(model2, ndraws = 100)
+
+
+# influential points and outliers
+loo2 <- loo(model2, cores = getOption("mc.cores", 1))
+print(loo2)
+plot(loo2)
+
+# inferences
+rope(post2$UE)
+rope(post2$CD)
+rope(post2$IN)
+rope(post2$IA)
+rope(post2$Ishihara)
+
+# brm model - allows for student distrubtuon to account for outliers
+model2b <- brm(ME1_4~ UE + CD + IN + IA + Ishihara, data = df2, family = student())
+summary(model2b)
+
+# posterior checks
+plot(model2b)
+describe_posterior(model2b)
+pp_check(modelb, ndraws = 100, 'stat')
+
+# influential points and outliers
+loo2b <- loo(model2b, cores = getOption("mc.cores", 1))
+print(loo2b)
+plot(loo2b)
+
+# inferences
+post2b <- get_parameters(model2b)
+
+rope(post2$UE)
+rope(post2$CD)
+rope(post2$IN)
+rope(post2$IA)
+rope(post2$Ishihara)
