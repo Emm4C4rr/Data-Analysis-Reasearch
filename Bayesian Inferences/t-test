@@ -1,0 +1,61 @@
+library(tidyverse)
+library(BayesFactor)
+library(psych)
+# Summative Yr1 - Stroop interference effects - significant
+df <- read.csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/Bayesian Analysis/Summative.csv')
+
+head(df)
+describe(df)
+# stroop_RTincon (incongruent) - stroop_RTcon (congruent)
+ # violin plot
+df_long <- pivot_longer(df, cols = c(colourIdent, incon, interf_incon_vs_col, interf_Golden), names_to = "stroop", values_to = "value")
+
+ggplot(df_long, aes(x = stroop, y = value, fill = stroop)) +
+  geom_violin()
+ # fit model (cauchy prior)
+bf = ttestBF(x = df$colourIdent,y=df$incon, paired=TRUE)
+
+chains = posterior(bf, iterations = 1000,)
+summary(chains)
+plot(chains)
+
+bf_1 = ttestBF(x = df$interf_incon_vs_col,y=0, paired=TRUE)
+
+chains_1 = posterior(bf_1, iterations = 1000,)
+summary(chains_1)
+plot(chains_1)
+
+bf_2 = ttestBF(x = df$interf_Golden,y=0, paired=TRUE)
+
+
+chains_2 = posterior(bf_2, iterations = 1000,)
+summary(chains_2)
+plot(chains_2)
+
+# Lab report 2 Yr2 - DRM - non-significant
+df2 <- read.csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/Bayesian Analysis/Lab report 2.csv')
+
+head(df2)
+describe(df2)
+
+bf2 = ttestBF(x = df2$List_4,y=df2$List_9, paired=TRUE)
+bf2
+
+chains2 = posterior(bf2, iterations = 1000)
+summary(chains2)
+plot(chains2)
+
+bf4 = ttestBF(x = df2$List_9,y=df2$List_15, paired=TRUE)
+bf4
+
+chains4 = posterior(bf4, iterations = 1000)
+summary(chains4)
+plot(chains4)
+
+# significant
+bf3 = ttestBF(x = df2$List_4,y=df2$List_15, paired=TRUE)
+bf3
+
+chains3 = posterior(bf3, iterations = 1000)
+summary(chains3)
+plot(chains3)
