@@ -1,0 +1,51 @@
+# Lab report 2 Yr2 - DRM anova signficant
+library(tidyverse)
+library(datawizard)
+library(bayesanova)
+library(psych)
+library(brms)
+
+df <- read.csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/Bayesian Analysis/Lab report 2.csv')
+
+head(df)
+describe(df)
+
+df_long <- data.frame(
+  subject = rep(1:nrow(df), times = 3),
+  value = c(df$List_4, df$List_9, df$List_15),
+  group = factor(rep(c("List_4", "List_9", "List_15"), each = nrow(df)))
+)
+
+# variables - List_4, List_9, list_15
+formula <- bf(value ~ 1 + group + (1 | subject), family = gaussian())
+
+model <- brm(
+  formula = formula,
+  data = df_long,
+  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+  control = list(adapt_delta = 0.95)
+)
+
+summary(model)
+plot(model)
+
+# Posterior predictive checks
+pp_check(model)
+assumption.check(df$List_4, df$List_9, df$List_15, conf.level=0.95)
+
+#model2 addressing normality
+formula2 <- bf(value ~ 1 + group + (1 | subject), family = student())
+
+model2 <- brm(
+  formula = formula2,
+  data = df_long,
+  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+  control = list(adapt_delta = 0.95)
+)
+
+summary(model2)
+plot(model2)
+
+# Posterior predictive checks
+pp_check(model2)
+
