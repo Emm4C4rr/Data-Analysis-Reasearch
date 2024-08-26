@@ -1,0 +1,74 @@
+# Summative Yr1 - Stroop interference effects - interference effects correlated to each other but neither are correlated to semo
+library(tidyverse)
+library(datawizard)
+library(psych)
+library(brms)
+library(GGally)
+library(patchwork)
+
+df <- read.csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/Bayesian Analysis/Summative.csv')
+
+head(df)
+describe(df)
+str(df)
+
+df$interf_incon_vs_col <- as.numeric(df$interf_incon_vs_col)
+df$semo <- as.numeric(df$semo)
+
+model <-
+  brm(data = df,
+      family = gaussian,
+      bf(mvbind(interf_incon_vs_col, interf_Golden, semo) ~ 1) + set_rescor(TRUE),
+      chains = 2,
+      cores = 2)
+
+summary(model)
+plot(model)
+
+# Create new data for predictions
+new_data <- expand.grid(
+  interf_incon_vs_col = seq(min(df$interf_incon_vs_col), max(df$interf_incon_vs_col), length.out = 100),
+  interf_Golden = seq(min(df$interf_Golden), max(df$interf_Golden), length.out = 100),
+  semo = seq(min(df$semo), max(df$semo), length.out = 100)
+)
+
+# wrangle
+fitted(model,
+       newdata = new_data) %>%
+  data.frame() %>%
+  bind_cols(new_data) %>%
+
+  # plots
+  ggplot(aes(interf_incon_vs_col)) +
+  geom_vline(xintercept = 0, color = "white") +
+  geom_hline(yintercept = 0, color = "white") +
+  geom_point(data = df,
+             aes(y = interf_Golden)) +
+  geom_smooth(aes(y = Estimate, ymin = Q2.5, ymax = Q97.5),
+              stat = "identity",
+              alpha = 1/4, size = 1/2) +
+  coord_cartesian(xlim = range(df$interf_incon_vs_col),
+                  ylim = range(df$interf_Golden))
+
+  ggplot(aes(semo)) +
+  geom_vline(xintercept = 0, color = "white") +
+  geom_hline(yintercept = 0, color = "white") +
+  geom_point(data = df,
+             aes(y = interf_incon_vs_col)) +
+  geom_smooth(aes(y = Estimate, ymin = Q2.5, ymax = Q97.5),
+              stat = "identity",
+              alpha = 1/4, size = 1/2) +
+  coord_cartesian(xlim = range(df$semo),
+                  ylim = range(df$interf_incon_vs_col))
+
+  ggplot(aes(semo)) +
+  geom_vline(xintercept = 0, color = "white") +
+  geom_hline(yintercept = 0, color = "white") +
+  geom_point(data = df,
+             aes(y = interf_Golden)) +
+  geom_smooth(aes(y = Estimate, ymin = Q2.5, ymax = Q97.5),
+              stat = "identity",
+              alpha = 1/4, size = 1/2) +
+  coord_cartesian(xlim = range(df$semo),
+                  ylim = range(df$interf_Golden))
+
