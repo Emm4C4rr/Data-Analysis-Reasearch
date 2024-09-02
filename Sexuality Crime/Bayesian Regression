@@ -1,0 +1,107 @@
+library(foreign)
+library(datawizard)
+library(tidyverse)
+library(psych)
+library(rstanarm)
+library(bayestestR)
+library(bayesplot)
+library(insight)
+library(patchwork)
+library(ggplot2)
+library(loo)
+library(brms)
+library(gridExtra)
+
+df <- read_csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/data wrangling samples/Sexuality_Crime_2022.csv')
+
+head(df)
+describe(df)
+
+# scaling variables
+df2 <- df%>%
+  mutate(att_7 = as.numeric(standardize(att_7)), Assault_Offenses = standardize(Assault_Offenses), Sex_Offenses = standardize(Sex_Offenses),
+         Drug_Offenses = standardize(Drug_Offenses), Pornographic_Offenses = standardize(Pornographic_Offenses),
+         Prostitution_Offenses = standardize(Prostitution_Offenses), age = standardize(age), religion = standardize(religionid),
+         politics = standardize(politicalid_7))
+
+df3 <- df2%>%
+  mutate(sex = factor(birthSex), education = factor(education), sexuality = factor(sexuality_5))
+
+
+create_box_plot <- function(data, predictor, y_var = "att_7") {
+  ggplot(data, aes(x = predictor, y = y_var)) +
+    geom_boxplot()
+}
+
+# List of predictors to visualize
+predictors <- c("Assault_Offenses", "Sex_Offenses", "Drug_Offenses",
+                "Pornographic_Offenses", "Prostitution_Offenses",
+                "age", "religionid", "politicalid_7", "birthSex",
+                "education", "sexuality_5")
+
+# Create a list of plots
+box_plots <- lapply(predictors, function(pred) create_box_plot(df3, pred))
+do.call(grid.arrange, c(box_plots, ncol = 3))
+
+# stan model - normal gaussian
+model <- stan_glm(att_7 ~ Assault_Offenses + Sex_Offenses + Drug_Offenses + Pornographic_Offenses +
+  Prostitution_Offenses + age + sex + religion + politics + education + sexuality, data=df3)
+
+print(model, digits = 3)
+summary(model)
+
+# posterior checks
+post <- get_parameters(model)
+
+p1 <- mcmc_dens(model, pars = c("Assault_Offenses"))+
+  vline_at(median(post$Assault_Offenses))
+
+p2 <- mcmc_dens(model, pars = c("Sex_Offenses"))+
+  vline_at(median(post$Sex_Offenses))
+
+p3 <- mcmc_dens(model, pars = c("Drug_Offenses"))+
+  vline_at(median(post$Drug_Offenses))
+
+p4 <- mcmc_dens(model, pars = c("Pornographic_Offenses"))+
+  vline_at(median(post$Pornographic_Offenses))
+
+p5 <- mcmc_dens(model, pars = c("Prostitution_Offenses"))+
+  vline_at(median(post$Prostitution_Offenses))
+
+p6 <- mcmc_dens(model, pars = c("age"))+
+  vline_at(median(post$age))
+
+p7 <- mcmc_dens(model, pars = c("sex2"))+
+  vline_at(median(post$sex))
+
+p8 <- mcmc_dens(model, pars = c("religion"))+
+  vline_at(median(post$religion))
+
+p9 <- mcmc_dens(model, pars = c("politics"))+
+  vline_at(median(post$politics))
+
+(p1 + p2 + p3)/(p4 + p5 + p6)/(p7 + p8 + p9)
+
+describe_posterior(model)
+pp_check(model, ndraws = 100)
+
+
+# influential points and outliers
+loo <- loo(model, cores = getOption("mc.cores", 1))
+print(loo)
+plot(loo)
+
+# brm model - allows for student distrubtuon to account for outliers
+model2 <- brm(att_7 ~ Assault_Offenses + Sex_Offenses + Drug_Offenses + Pornographic_Offenses +
+  Prostitution_Offenses + age + sex + religion + politics + education + sexuality, data=df3, family = student())
+summary(model2)
+
+# posterior checks
+plot(model2)
+describe_posterior(model2)
+pp_check(model2, ndraws = 100, 'stat')
+
+# influential points and outliers
+loo2 <- loo(model2, cores = getOption("mc.cores", 1))
+print(loo2)
+plot(loo2)
