@@ -1,0 +1,95 @@
+import pandas as pd
+import requests
+import time
+
+# Replace 'YOUR_API_KEY' with your actual BLS API key
+API_KEY = 'a8b7a471cc7c439eae3df6ae9117da8e'
+
+# Define the expanded range of years
+years = list(range(2000, 2024))  # Expanded range from 2000 to 2023
+
+# Define state codes
+states = {
+    "Alabama": "01", "Alaska": "02", "Arizona": "04", "Arkansas": "05", "California": "06", "Colorado": "08",
+    "Connecticut": "09", "Delaware": "10", "Florida": "12", "Georgia": "13", "Hawaii": "15", "Idaho": "16",
+    "Illinois": "17", "Indiana": "18", "Iowa": "19", "Kansas": "20", "Kentucky": "21", "Louisiana": "22", "Maine": "23",
+    "Maryland": "24", "Massachusetts": "25", "Michigan": "26", "Minnesota": "27", "Mississippi": "28", "Missouri": "29",
+    "Montana": "30", "Nebraska": "31", "Nevada": "32", "New Hampshire": "33", "New Jersey": "34", "New Mexico": "35",
+    "New York": "36", "North Carolina": "37", "North Dakota": "38", "Ohio": "39", "Oklahoma": "40", "Oregon": "41",
+    "Pennsylvania": "42", "Rhode Island": "44", "South Carolina": "45", "South Dakota": "46", "Tennessee": "47",
+    "Texas": "48", "Utah": "49", "Vermont": "50", "Virginia": "51", "Washington": "53", "West Virginia": "54",
+    "Wisconsin": "55", "Wyoming": "56"
+}
+
+# Placeholder for the final data for unemployment rates
+unemployment_data = []
+
+# Loop through each state first
+for state_name, state_code in states.items():
+    series_id = f"LASST{state_code}0000000000003"  # Series ID for the state's unemployment rate
+
+    # Loop through each year to fetch data for that state
+    for year in years:
+        # Construct the URL for the BLS API request
+        url = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
+
+        # Define the headers and payload for the request
+        headers = {'Content-Type': 'application/json'}
+        payload = {
+            "seriesid": [series_id],
+            "startyear": str(year),
+            "endyear": str(year),
+            "registrationkey": API_KEY
+        }
+
+        # Make the API request
+        response = requests.post(url, json=payload, headers=headers)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            json_data = response.json()
+
+            if 'status' in json_data and json_data['status'] == "REQUEST_SUCCEEDED":
+                if 'Results' in json_data and 'series' in json_data['Results']:
+                    data = json_data['Results']['series'][0]['data']
+
+                    # Group data by year and calculate the yearly average
+                    monthly_data = {}
+                    for entry in data:
+                        entry_year = int(entry['year'])
+                        month = entry['periodName']
+                        unemployment_rate = float(entry['value'])
+
+                        # Only consider months (skip 'M13' which is an annual average if present)
+                        if "M13" not in entry['period']:  # Skip any 'M13' entries (annual data)
+                            if entry_year not in monthly_data:
+                                monthly_data[entry_year] = []
+                            monthly_data[entry_year].append(unemployment_rate)
+
+                    # Calculate average for each year
+                    for year, rates in monthly_data.items():
+                        if len(rates) == 12:  # Ensure there are 12 months of data
+                            yearly_average = sum(rates) / len(rates)
+                            unemployment_data.append([year, state_name, yearly_average])
+                        else:
+                            print(f"Warning: Incomplete data for {state_name} in {year}, only {len(rates)} months available.")
+            else:
+                print(f"Error fetching data for {state_name} in year {year}: {json_data.get('message', 'Unknown error')}")
+        else:
+            print(f"Failed to retrieve data for {state_name} in year {year}: {response.status_code} - {response.text}")
+
+        # Delay to handle API rate limits
+        time.sleep(0.5)  # Adjust the sleep time as necessary to avoid rate limits
+
+# Convert to DataFrame for unemployment rates
+unemployment_df = pd.DataFrame(unemployment_data, columns=['Year', 'State', 'Unemployment Rate'])
+
+# Sort by State, then by Year
+unemployment_df.sort_values(by=['State', 'Year'], inplace=True)
+
+# Save to CSV for unemployment rates
+unemployment_df.to_csv('unemployment_rate_by_state_2000_2024.csv', index=False)
+print("Unemployment data has been saved to 'unemployment_rate_by_state_2000_2024.csv'.")
+
+pd.set_option('display.max_rows', None)
+print(unemployment_df)
