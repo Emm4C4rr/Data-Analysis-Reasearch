@@ -1,0 +1,61 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split, KFold, GridSearchCV
+import xgboost as xgb
+import shap
+
+df = pd.read_csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/data wrangling samples/Sexuality_Crime_2022.csv')
+
+print(df)
+
+df2 = df.drop(columns=['Unnamed: 0', 'Mn_RT_all_3467', 'PCT_error_3467', 'Stimuli', 'State'])
+
+X = df2.drop('att_7', axis=1)
+y = df2['att_7']
+
+print(X.head())
+print(y.head())
+
+X_train, X_test, y_train, y_test = train_test_split(X.values, y.values, test_size=0.3, random_state=0)
+
+xgboost_model = xgb.XGBRegressor()
+
+param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [3, 4, 5],
+    'learning_rate': [0.01, 0.1, 0.2],
+    'subsample': [0.7, 0.8, 0.9],
+    'colsample_bytree': [0.7, 0.8, 0.9]
+}
+
+cv = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Set up GridSearchCV
+grid_search = GridSearchCV(estimator=xgboost_model, param_grid=param_grid,
+                           scoring='r2', cv=cv, verbose=1, n_jobs=-1)
+
+# Fit the model
+grid_search.fit(X_train, y_train)
+
+best_model = grid_search.best_estimator_
+
+print("Best parameters found: ", grid_search.best_params_)
+print("Best R^2 score: ", grid_search.best_score_)
+
+print("Best Hyperparameters: ", grid_search.best_params_)
+
+test_r2 = best_model.score(X_test, y_test)
+print("Test R-squared: ", test_r2)
+
+explainer = shap.Explainer(best_model)
+
+# Compute SHAP values for the test set
+shap_values = explainer(X_test)
+
+# Generate a summary plot
+shap.summary_plot(shap_values, X_test, feature_names=['age', 'birthSex', 'sexuality_5', 'race', 'D_score',
+                                                      'Overallgayexposure', 'Same_sexRights', 'Tgaymen',
+                                                      'Tgayleswomen', 'Tstraightmen', 'Tstraightwomen',
+                                                      'religionid', 'education', 'politicalid_7',
+                                                      'Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses',
+                                                      'Pornographic_Offenses', 'Prostitution_Offenses',
+                                                      'Total_SCrimes', 'Total_Crime_rates'])
