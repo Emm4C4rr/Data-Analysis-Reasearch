@@ -2,11 +2,10 @@ import pandas as pd
 import requests
 import time
 
-# Replace 'YOUR_API_KEY' with your actual BLS API key
 API_KEY = 'a8b7a471cc7c439eae3df6ae9117da8e'
 
-# Define the expanded range of years
-years = list(range(2000, 2024))  # Expanded range from 2000 to 2023
+# Define the range of years
+years = list(range(2000, 2024))
 
 # Define state codes
 states = {
@@ -26,14 +25,11 @@ unemployment_data = []
 
 # Loop through each state first
 for state_name, state_code in states.items():
-    series_id = f"LASST{state_code}0000000000003"  # Series ID for the state's unemployment rate
+    series_id = f"LASST{state_code}0000000000003"
 
     # Loop through each year to fetch data for that state
     for year in years:
-        # Construct the URL for the BLS API request
         url = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
-
-        # Define the headers and payload for the request
         headers = {'Content-Type': 'application/json'}
         payload = {
             "seriesid": [series_id],
@@ -49,6 +45,7 @@ for state_name, state_code in states.items():
         if response.status_code == 200:
             json_data = response.json()
 
+            # Check if the request succeeded or hit the threshold
             if 'status' in json_data and json_data['status'] == "REQUEST_SUCCEEDED":
                 if 'Results' in json_data and 'series' in json_data['Results']:
                     data = json_data['Results']['series'][0]['data']
@@ -60,26 +57,34 @@ for state_name, state_code in states.items():
                         month = entry['periodName']
                         unemployment_rate = float(entry['value'])
 
-                        # Only consider months (skip 'M13' which is an annual average if present)
-                        if "M13" not in entry['period']:  # Skip any 'M13' entries (annual data)
+                        # Only consider months
+                        if "M13" not in entry['period']:
                             if entry_year not in monthly_data:
                                 monthly_data[entry_year] = []
                             monthly_data[entry_year].append(unemployment_rate)
 
                     # Calculate average for each year
                     for year, rates in monthly_data.items():
-                        if len(rates) == 12:  # Ensure there are 12 months of data
+                        if len(rates) == 12:
                             yearly_average = sum(rates) / len(rates)
                             unemployment_data.append([year, state_name, yearly_average])
                         else:
-                            print(f"Warning: Incomplete data for {state_name} in {year}, only {len(rates)} months available.")
+                            print(
+                                f"Warning: Incomplete data for {state_name} in {year}, only {len(rates)} months available.")
             else:
-                print(f"Error fetching data for {state_name} in year {year}: {json_data.get('message', 'Unknown error')}")
+                print(
+                    f"Error fetching data for {state_name} in year {year}: {json_data.get('message', 'Unknown error')}")
+
+                # If the error is about daily threshold limit, pause the script and wait until the next day
+                if 'daily threshold' in json_data.get('message', '').lower():
+                    print("Daily request limit reached. Pausing script until the next day...")
+                    time.sleep(86400)  # Wait for 24 hours (86400 seconds)
+                break
         else:
             print(f"Failed to retrieve data for {state_name} in year {year}: {response.status_code} - {response.text}")
 
         # Delay to handle API rate limits
-        time.sleep(0.5)  # Adjust the sleep time as necessary to avoid rate limits
+        time.sleep(2)
 
 # Convert to DataFrame for unemployment rates
 unemployment_df = pd.DataFrame(unemployment_data, columns=['Year', 'State', 'Unemployment Rate'])
