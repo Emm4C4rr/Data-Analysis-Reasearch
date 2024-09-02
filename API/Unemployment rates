@@ -72,14 +72,15 @@ for state_name, state_code in states.items():
                             print(
                                 f"Warning: Incomplete data for {state_name} in {year}, only {len(rates)} months available.")
             else:
-                print(
-                    f"Error fetching data for {state_name} in year {year}: {json_data.get('message', 'Unknown error')}")
-
-                # If the error is about daily threshold limit, pause the script and wait until the next day
-                if 'daily threshold' in json_data.get('message', '').lower():
+                error_message = json_data.get('message', '')
+                if isinstance(error_message, list):
+                    error_message = ' '.join(error_message) 
+                if 'daily threshold' in error_message.lower():
                     print("Daily request limit reached. Pausing script until the next day...")
-                    time.sleep(86400)  # Wait for 24 hours (86400 seconds)
-                break
+                    time.sleep(86400)  # Wait for 24 hours
+                    break 
+                else:
+                    print(f"Error fetching data for {state_name} in year {year}: {error_message}")
         else:
             print(f"Failed to retrieve data for {state_name} in year {year}: {response.status_code} - {response.text}")
 
