@@ -1,0 +1,77 @@
+rom sklearn.ensemble import RandomForestRegressor
+import xgboost as xgb
+import shap
+
+df = pd.read_csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/data wrangling samples/Sexuality_Crime_2022.csv')
+
+df2 = df.drop(columns=['Unnamed: 0', 'Mn_RT_all_3467', 'PCT_error_3467', 'Stimuli'])
+X = df2.drop(['att_7', 'State'], axis=1)
+y = df2['att_7']
+Z = pd.DataFrame({'intercept': 1}, index=df2.index)  # Not used in Random Forest and XGBoost directly
+clusters = df2['State']
+
+# Split data
+X_train, X_test, y_train, y_test, clusters_train, clusters_test = train_test_split(
+    X, y, clusters, test_size=0.3, random_state=42)
+
+# Random Forest Model
+rf_model = RandomForestRegressor()
+
+# Hyperparameter tuning for Random Forest
+rf_param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [None, 10, 20],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4]
+}
+
+rf_grid_search = GridSearchCV(estimator=rf_model, param_grid=rf_param_grid,
+                              scoring='r2', cv=KFold(n_splits=5, shuffle=True, random_state=42),
+                              verbose=1, n_jobs=-1)
+
+rf_grid_search.fit(X_train, y_train)
+best_rf_model = rf_grid_search.best_estimator_
+
+print("Best parameters for Random Forest: ", rf_grid_search.best_params_)
+print("Best R^2 score for Random Forest: ", rf_grid_search.best_score_)
+
+test_r2_rf = best_rf_model.score(X_test, y_test)
+print("Test R-squared for Random Forest: ", test_r2_rf)
+
+# XGBoost Model
+xgboost_model = xgb.XGBRegressor()
+
+# Hyperparameter tuning for XGBoost
+xgb_param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [3, 4, 5],
+    'learning_rate': [0.01, 0.1, 0.2],
+    'subsample': [0.7, 0.8, 0.9],
+    'colsample_bytree': [0.7, 0.8, 0.9]
+}
+
+xgb_grid_search = GridSearchCV(estimator=xgboost_model, param_grid=xgb_param_grid,
+                               scoring='r2', cv=KFold(n_splits=5, shuffle=True, random_state=42),
+                               verbose=1, n_jobs=-1)
+
+xgb_grid_search.fit(X_train, y_train)
+best_xgb_model = xgb_grid_search.best_estimator_
+
+print("Best parameters for XGBoost: ", xgb_grid_search.best_params_)
+print("Best R^2 score for XGBoost: ", xgb_grid_search.best_score_)
+
+test_r2_xgb = best_xgb_model.score(X_test, y_test)
+print("Test R-squared for XGBoost: ", test_r2_xgb)
+
+# Visualisations
+# SHAP Plot
+explainer = shap.Explainer(best_xgb_model)
+shap_values = explainer(X_test)
+
+shap.summary_plot(shap_values, X_test, feature_names=['age', 'birthSex', 'sexuality_5', 'race', 'D_score',
+                                                      'Overallgayexposure', 'Same_sexRights', 'Tgaymen',
+                                                      'Tgayleswomen', 'Tstraightmen', 'Tstraightwomen',
+                                                      'religionid', 'education', 'politicalid_7',
+                                                      'Assault_Offenses', 'Sex_Offenses', 'Drug_Offenses',
+                                                      'Pornographic_Offenses', 'Prostitution_Offenses',
+                                                      'Total_SCrimes', 'Total_Crime_rates'])
