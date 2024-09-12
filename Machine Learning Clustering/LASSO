@@ -1,0 +1,42 @@
+import pandas as pd
+from sklearn.linear_model import Lasso
+from sklearn.model_selection import train_test_split, KFold, GridSearchCV
+import shap
+
+df = pd.read_csv('C:/Users/emmam/PycharmProjects/pythonProject2/Summer project/data wrangling samples/Sexuality_Crime_2022.csv')
+df2 = df.drop(columns=['Unnamed: 0', 'Mn_RT_all_3467', 'PCT_error_3467', 'Stimuli'])
+X = df2.drop(['att_7', 'State'], axis=1)
+y = df2['att_7']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# LASSO model and Grid Search
+lasso = Lasso()
+param_grid = {
+    'alpha': [0.01, 0.1, 1, 10, 100]
+}
+
+cv = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Set up GridSearchCV
+grid_search = GridSearchCV(estimator=lasso, param_grid=param_grid, scoring='r2', cv=cv, verbose=1, n_jobs=-1)
+
+# Fit the model
+grid_search.fit(X_train, y_train)
+
+best_model = grid_search.best_estimator_
+
+print("Best parameters found: ", grid_search.best_params_)
+print("Best R^2 score: ", grid_search.best_score_)
+
+# Evaluate on test set
+test_r2 = best_model.score(X_test, y_test)
+print("Test R-squared: ", test_r2)
+
+# Visualizations
+# 1. SHAP plot
+explainer = shap.Explainer(best_model, X_train)
+shap_values = explainer(X_test)
+
+shap.summary_plot(shap_values, X_test, feature_names=X.columns)
