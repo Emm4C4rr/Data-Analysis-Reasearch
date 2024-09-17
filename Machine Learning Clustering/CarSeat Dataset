@@ -10,13 +10,13 @@ import seaborn as sns
 pd.set_option('display.max_columns', None)
 
 # Original XGBoost model
-Auto = load_data('Auto')
-print(Auto.head)
-print(Auto.describe())
+Carseats = load_data('Carseats')
+print(Carseats.head)
+print(Carseats.describe())
 
 # Define features and target variable
-X = Auto.drop(['mpg', 'origin'], axis=1)
-y = Auto['mpg']
+X = Carseats.drop(['Sales', 'ShelveLoc', 'Urban', 'US'], axis=1)
+y = Carseats['Sales']
 
 print(X.head())
 print(y.head())
@@ -61,8 +61,8 @@ shap_values = explainer(X_test)
 shap.summary_plot(shap_values, X_test, feature_names=X.columns)
 
 # MERF
-Z = pd.DataFrame({'intercept': 1}, index=Auto.index)
-clusters = Auto['origin']
+Z = pd.DataFrame({'intercept': 1}, index=Carseats.index)
+clusters = Carseats['ShelveLoc']
 
 print(X.head())
 print(y.head())
@@ -108,13 +108,13 @@ y_pred_fixed = mrf_xgb.fe_model.predict(X_test)
 random_effects_contribution = y_pred_merf - y_pred_fixed
 
 random_effects_df = pd.DataFrame({
-    'origin': clusters_test,
+    'ShelveLoc': clusters_test,
     'Random Effect Contribution': random_effects_contribution})
-random_effects_mean = random_effects_df.groupby('origin').mean().reset_index()
+random_effects_mean = random_effects_df.groupby('ShelveLoc').mean().reset_index()
 
 plt.figure(figsize=(10, 6))
-sns.barplot(x='Random Effect Contribution', y='origin', data=random_effects_mean.sort_values('Random Effect Contribution'))
-plt.title('Random Effects Contributions by origin')
+sns.barplot(x='Random Effect Contribution', y='ShelveLoc', data=random_effects_mean.sort_values('Random Effect Contribution'))
+plt.title('Random Effects Contributions by ShelveLoc')
 plt.xlabel('Mean Random Effect Contribution')
-plt.ylabel('origin')
+plt.ylabel('ShelveLoc')
 plt.show()
