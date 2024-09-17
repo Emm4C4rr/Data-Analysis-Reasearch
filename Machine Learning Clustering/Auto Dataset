@@ -1,0 +1,120 @@
+from ISLP import load_data
+from sklearn.model_selection import train_test_split, KFold, GridSearchCV
+import xgboost as xgb
+import shap
+import pandas as pd
+from merf import MERF
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+pd.set_option('display.max_columns', None)
+
+# Original XGBoost model
+Auto = load_data('Auto')
+print(Auto.head)
+print(Auto.describe())
+
+# Define features and target variable
+X = Auto.drop(['mpg', 'origin'], axis=1)
+y = Auto['mpg']
+
+print(X.head())
+print(y.head())
+
+X_train, X_test, y_train, y_test = train_test_split(X.values, y.values, test_size=0.3, random_state=0)
+
+xgboost_model = xgb.XGBRegressor()
+
+param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [3, 4, 5],
+    'learning_rate': [0.01, 0.1, 0.2],
+    'subsample': [0.7, 0.8, 0.9],
+    'colsample_bytree': [0.7, 0.8, 0.9]
+}
+
+cv = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Set up GridSearchCV
+grid_search = GridSearchCV(estimator=xgboost_model, param_grid=param_grid,
+                           scoring='r2', cv=cv, verbose=1, n_jobs=-1)
+
+# Fit the model
+grid_search.fit(X_train, y_train)
+
+best_model = grid_search.best_estimator_
+
+print("Best parameters found: ", grid_search.best_params_)
+print("Best R^2 score: ", grid_search.best_score_)
+
+print("Best Hyperparameters: ", grid_search.best_params_)
+
+test_r2 = best_model.score(X_test, y_test)
+print("Test R-squared: ", test_r2)
+
+explainer = shap.Explainer(best_model)
+
+# Compute SHAP values for the test set
+shap_values = explainer(X_test)
+
+# Generate a summary plot
+shap.summary_plot(shap_values, X_test, feature_names=X.columns)
+
+# MERF
+Z = pd.DataFrame({'intercept': 1}, index=Auto.index)
+clusters = Auto['origin']
+
+print(X.head())
+print(y.head())
+print(clusters.head())
+
+X_train, X_test, Z_train, Z_test, y_train, y_test, clusters_train, clusters_test = train_test_split(
+    X, Z, y, clusters, test_size=0.3, random_state=42)
+
+xgboost_model2 = xgb.XGBRegressor()
+
+mrf_xgb = MERF(xgboost_model2, max_iterations=15)
+mrf_xgb.fit(X_train, Z_train, clusters_train, y_train, X_test, Z_test, clusters_test, y_test)
+y_hat = mrf_xgb.predict(X_test, Z_test, clusters_test)
+
+# Set up GridSearchCV
+grid_search2 = GridSearchCV(estimator=xgboost_model2, param_grid=param_grid,
+                           scoring='r2', cv=cv, verbose=1, n_jobs=-1)
+
+# Fit the model
+grid_search2.fit(X_train, y_train)
+
+best_model2 = grid_search2.best_estimator_
+
+print("Best parameters found: ", grid_search2.best_params_)
+print("Best R^2 score: ", grid_search2.best_score_)
+
+print("Best Hyperparameters: ", grid_search2.best_params_)
+
+test_r2 = best_model2.score(X_test, y_test)
+print("Test R-squared: ", test_r2)
+
+# Visualisations
+# 1. Shap plot
+explainer2 = shap.Explainer(best_model2)
+shap_values2 = explainer(X_test)
+
+shap.summary_plot(shap_values2, X_test, feature_names=X.columns)
+
+# 2. Random Effects Plot
+y_pred_merf = mrf_xgb.predict(X_test, Z_test, clusters_test)
+y_pred_fixed = mrf_xgb.fe_model.predict(X_test)
+
+random_effects_contribution = y_pred_merf - y_pred_fixed
+
+random_effects_df = pd.DataFrame({
+    'origin': clusters_test,
+    'Random Effect Contribution': random_effects_contribution})
+random_effects_mean = random_effects_df.groupby('origin').mean().reset_index()
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Random Effect Contribution', y='origin', data=random_effects_mean.sort_values('Random Effect Contribution'))
+plt.title('Random Effects Contributions by origin')
+plt.xlabel('Mean Random Effect Contribution')
+plt.ylabel('origin')
+plt.show()
