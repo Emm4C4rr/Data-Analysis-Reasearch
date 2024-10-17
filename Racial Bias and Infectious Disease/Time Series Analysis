@@ -1,0 +1,289 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.stattools import adfuller, grangercausalitytests
+from statsmodels.tsa.arima.model import ARIMA
+from prophet import Prophet
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from sklearn.preprocessing import StandardScaler
+import itertools
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+# Load the dataset
+df = pd.read_csv('C:/Users/emmam/PycharmProjects/pythonProject2/Racial Bias and Infectious Disease Research/exploratorydata.csv')
+print(df)
+
+pd.set_option('display.max_columns', None)
+
+# Map year numbers to actual years
+mapping = {1: 2006, 2: 2007, 3: 2008, 4: 2009, 5: 2010, 6: 2011, 7: 2012,
+           8: 2013, 9: 2014, 10: 2015, 11: 2016, 12: 2017, 13: 2018, 14: 2019}
+df['year'] = df['year'].map(mapping)
+
+# Prepare the exploratory index (EI)
+EI = df[['state', 'year', 'sex', 'age', 'race', 'pol', 'edu_14', 'religionid',
+         'd_score', 'brmean', 'attitude', 'therm_score']].dropna()
+print(EI)
+
+# Calculate averaged scores per year
+Variables = ['d_score', 'brmean', 'attitude', 'therm_score']
+avg_variables = df.groupby('year')[Variables].mean().reset_index()
+print(avg_variables)
+
+# Standardise Variables
+scaler = StandardScaler()
+avg_variables[Variables] = scaler.fit_transform(avg_variables[Variables])
+
+# Plot variables over time
+titles = ['d_Score', 'brmean', 'attitude', 'therm_score']
+fig, axs = plt.subplots(len(Variables), 1, figsize=(10, 12), sharex=True, sharey=True)
+for i, var in enumerate(Variables):
+    axs[i].plot(avg_variables['year'], avg_variables[var])
+    axs[i].set_title(titles[i])
+    axs[i].grid(True)
+
+fig.suptitle('Implicit and Explicit Scores Over Time', fontsize=16)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.show()
+
+# Plot all variables (combined)
+plt.figure(figsize=(10, 6))
+for var in Variables:
+    plt.plot(avg_variables['year'], avg_variables[var], label=var, marker='o')
+
+plt.xlabel('Year')
+plt.ylabel('Scores')
+plt.title('Implicit and Explicit Scores Over Time (Combined)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Create lagged variables for correlation analysis
+avg_variables['brmean_lag1'] = avg_variables['brmean'].shift(1)
+avg_variables['therm_score_lag1'] = avg_variables['therm_score'].shift(1)
+avg_variables['attitude_lag1'] = avg_variables['attitude'].shift(1)
+
+# Calculate correlations with lagged values
+correlation_brmean = avg_variables['d_score'].corr(avg_variables['brmean_lag1'])
+correlation_therm_score = avg_variables['d_score'].corr(avg_variables['therm_score_lag1'])
+correlation_attitude = avg_variables['d_score'].corr(avg_variables['attitude_lag1'])
+
+print(f'Correlation between lagged brmean and d_score: {correlation_brmean:.2f}')
+print(f'Correlation between lagged therm_score and d_score: {correlation_therm_score:.2f}')
+print(f'Correlation between lagged attitude and d_score: {correlation_attitude:.2f}')
+
+# Granger Causality Test
+granger_data = avg_variables[['d_score', 'brmean', 'therm_score', 'attitude']].dropna()
+max_lag = 3
+for var in ['brmean', 'therm_score', 'attitude']:
+    print(f"\nGranger Causality Test: {var} and d_score")
+    grangercausalitytests(granger_data[['d_score', var]], max_lag)
+
+# Augmented Dickey-Fuller Test for stationarity
+def adf_test(series):
+    result = adfuller(series)
+    print(f'ADF statistic: {result[0]}')
+    print(f'p-value: {result[1]}')
+    print('Critical Values:')
+    for key, value in result[4].items():
+        print(f'    {key}, {value}')
+
+for variable in ['d_score', 'brmean', 'therm_score']:
+    print(f"\nADF Test for {variable}:")
+    adf_test(avg_variables[variable])
+
+# Grid search for ARIMA parameters
+def grid_search_arima(series, exog_vars):
+    p = d = q = range(0, 3)
+    pdq = list(itertools.product(p, d, q))
+
+    best_aic = float("inf")
+    best_params = None
+    best_model = None
+
+    for param in pdq:
+        try:
+            model = ARIMA(series, exog=exog_vars, order=param)
+            result = model.fit()
+            if result.aic < best_aic:
+                best_aic = result.aic
+                best_params = param
+                best_model = result
+            print(f"ARIMA{param} - AIC:{result.aic:.2f}")
+
+        except Exception as e:
+            print(f"Model ARIMA{param} encountered an error: {e}")
+            continue
+
+    print(f"\nBest ARIMA{best_params} - AIC:{best_aic:.2f}")
+    return best_model, best_params
+
+# Fit the ARIMA model using grid search
+exog_vars = avg_variables[['brmean', 'therm_score']].dropna()
+best_model, best_params = grid_search_arima(avg_variables['d_score'].dropna(), exog_vars)
+
+# Forecast future values of exogenous variables
+def forecast_exogenous_variable(variable, steps=5):
+    model = ARIMA(variable.dropna(), order=best_params)
+    result = model.fit()
+    forecast = result.forecast(steps=steps)
+    return forecast
+
+# Forecast for the exogenous variables
+brmean_forecast = forecast_exogenous_variable(avg_variables['brmean'], steps=5)
+therm_score_forecast = forecast_exogenous_variable(avg_variables['therm_score'], steps=5)
+
+# Prepare the future exogenous dataframe
+future_exog = pd.DataFrame({
+    'brmean': brmean_forecast,
+    'therm_score': therm_score_forecast
+})
+
+# ARIMA model forecasting and plotting
+def fit_arima_and_plot_forecast(series, exog_vars, future_exog, best_params, steps=5):
+    series_aligned = series.dropna()
+    exog_vars_aligned = exog_vars.loc[series_aligned.index].dropna()
+
+    # Fit the ARIMA model
+    arima_model = ARIMA(series_aligned, exog=exog_vars_aligned, order=best_params)
+    arima_result = arima_model.fit()
+    print(arima_result.summary())
+
+    # Forecast with future exogenous values
+    forecast = arima_result.get_forecast(steps=steps, exog=future_exog)
+    forecast_ci = forecast.conf_int()
+
+    # Plot forecast
+    last_year = avg_variables['year'].max()
+    future_years = np.arange(last_year + 1, last_year + steps + 1)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(avg_variables['year'], series_aligned, label='Actual d_score', marker='o')
+    plt.plot(future_years, forecast.predicted_mean, label='Forecasted d_score', marker='o', color='orange')
+    plt.fill_between(future_years, forecast_ci.iloc[:, 0], forecast_ci.iloc[:, 1], color='orange', alpha=0.3)
+    plt.xticks(np.arange(int(avg_variables['year'].min()), int(future_years.max()) + 1, 1))
+
+    plt.xlabel('Year')
+    plt.ylabel('Scores')
+    plt.title('ARIMA Forecast of d_score with Exogenous Variables')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    return arima_result.resid
+
+arima_result = fit_arima_and_plot_forecast(
+    avg_variables['d_score'].dropna(),
+    exog_vars.dropna(),
+    future_exog,
+    best_params
+)
+
+# Prophet model forecasting
+def fit_prophet_and_plot_forecast(variable, periods=5):
+    # Prepare the data for Prophet, ensuring only 'variable' is renamed to 'y'
+    prophet_df = avg_variables[['year', variable, 'brmean', 'therm_score']].copy()
+    prophet_df = prophet_df.rename(columns={'year': 'ds', variable: 'y'})  # Rename only 'variable' column to 'y'
+    prophet_df['ds'] = pd.to_datetime(prophet_df['ds'], format='%Y')
+
+    print(prophet_df)
+    # Fit the Prophet model with regressors
+    model = Prophet(yearly_seasonality=True)
+    model.add_regressor('brmean')
+    model.add_regressor('therm_score')
+    model.fit(prophet_df)
+
+    # Create a future DataFrame for forecasting
+    future = model.make_future_dataframe(periods=periods, freq='Y')
+
+    # Add the most recent values of the regressors for future periods (or use forecasted values)
+    future['brmean'] = avg_variables['brmean'].iloc[-1]  # You can replace this with forecasted values
+    future['therm_score'] = avg_variables['therm_score'].iloc[-1]  # You can replace this with forecasted values
+
+    # Make the forecast
+    forecast = model.predict(future)
+
+    # Plot the forecast
+    fig = model.plot(forecast)
+    plt.title(f"Prophet Forecast for {variable} (2006-2021)")
+    plt.show()
+
+    return forecast
+
+
+# Residual diagnostics
+def plot_residual_diagnostics(residuals):
+    plt.figure(figsize=(10, 6))
+
+    # Residual plot
+    plt.subplot(211)
+    plt.plot(residuals)
+    plt.title('Residuals from ARIMA Model')
+
+    # Density plot of residuals
+    plt.subplot(212)
+    sns.kdeplot(residuals, fill=True)
+    plt.title('Density Plot of Residuals')
+
+    plt.tight_layout()
+    plt.show()
+
+    # Check for autocorrelation in residuals
+    plot_acf(residuals, lags=6)
+    plt.title('ACF of Residuals')
+    plt.show()
+
+# ACF and PACF plotting
+def plot_acf_pacf(series, lags=6):
+    plt.figure(figsize=(12, 6))
+
+    # ACF
+    plt.subplot(121)
+    plot_acf(series.dropna(), lags=lags, ax=plt.gca())
+    plt.title('Autocorrelation of d_score')
+
+    # PACF
+    plt.subplot(122)
+    plot_pacf(series.dropna(), lags=lags, ax=plt.gca())
+    plt.title('Partial Autocorrelation of d_score')
+
+    plt.tight_layout()
+    plt.show()
+
+# Main execution
+exog_vars = avg_variables[['brmean', 'therm_score']]
+
+# Fit ARIMA model, plot forecast, and check residuals
+arima_result = fit_arima_and_plot_forecast(avg_variables['d_score'].dropna(), exog_vars.dropna(), future_exog, best_params)
+plot_residual_diagnostics(arima_result)
+
+# Fit Prophet models for all outcome variables
+outcome_variables = ['d_score', 'brmean', 'therm_score']
+for var in outcome_variables:
+    fit_prophet_and_plot_forecast(var)
+
+# Plot ACF and PACF for d_score
+plot_acf_pacf(avg_variables['d_score'])
+
+# Correlation matrix Plot
+corr_matrix = avg_variables[['d_score', 'brmean', 'attitude', 'therm_score']].corr()
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+plt.title('Correlation Heatmap: Explicit and Implicit Scores')
+plt.show()
+
+
+
+# Does yearly unemployment rates and GINI precede Racial exposure and diversity
+
+UE = df[['state', 'year', 'sex', 'age', 'pol', 'edu_14', 'religionid',
+         'GINI_ACS_2008_2012', 'gini.y', 'gini.x', 'Population_Density_land_Sq_m', 'pop_dens',
+         'ACS_White/black_Ratio_Log', 'ACS_White/black_Ratio', 'Ratio_exposure_Black_White_Log', 'Ratio_exposure_Black_White',
+         'Percentage_Unemployed=', 'med_inc']]
+UE = UE.dropna
+print(UE)
