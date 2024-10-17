@@ -137,7 +137,6 @@ def forecast_exogenous_variable(variable, steps=5):
 brmean_forecast = forecast_exogenous_variable(avg_variables['brmean'], steps=5)
 therm_score_forecast = forecast_exogenous_variable(avg_variables['therm_score'], steps=5)
 
-# Prepare the future exogenous dataframe
 future_exog = pd.DataFrame({
     'brmean': brmean_forecast,
     'therm_score': therm_score_forecast
@@ -148,7 +147,7 @@ def fit_arima_and_plot_forecast(series, exog_vars, future_exog, best_params, ste
     series_aligned = series.dropna()
     exog_vars_aligned = exog_vars.loc[series_aligned.index].dropna()
 
-    # Fit the ARIMA model
+    # Fit
     arima_model = ARIMA(series_aligned, exog=exog_vars_aligned, order=best_params)
     arima_result = arima_model.fit()
     print(arima_result.summary())
@@ -185,35 +184,25 @@ arima_result = fit_arima_and_plot_forecast(
 
 # Prophet model forecasting
 def fit_prophet_and_plot_forecast(variable, periods=5):
-    # Prepare the data for Prophet, ensuring only 'variable' is renamed to 'y'
-    prophet_df = avg_variables[['year', variable, 'brmean', 'therm_score']].copy()
-    prophet_df = prophet_df.rename(columns={'year': 'ds', variable: 'y'})  # Rename only 'variable' column to 'y'
+    # Prepare the data for Prophet
+    prophet_df = avg_variables[['year', 'd_score', 'brmean', 'therm_score']].rename(columns={'year': 'ds', variable: 'y'})
     prophet_df['ds'] = pd.to_datetime(prophet_df['ds'], format='%Y')
 
-    print(prophet_df)
-    # Fit the Prophet model with regressors
+    # Fit
     model = Prophet(yearly_seasonality=True)
-    model.add_regressor('brmean')
-    model.add_regressor('therm_score')
     model.fit(prophet_df)
 
-    # Create a future DataFrame for forecasting
     future = model.make_future_dataframe(periods=periods, freq='Y')
-
-    # Add the most recent values of the regressors for future periods (or use forecasted values)
-    future['brmean'] = avg_variables['brmean'].iloc[-1]  # You can replace this with forecasted values
-    future['therm_score'] = avg_variables['therm_score'].iloc[-1]  # You can replace this with forecasted values
-
-    # Make the forecast
     forecast = model.predict(future)
 
-    # Plot the forecast
+    # Plot forecast
     fig = model.plot(forecast)
     plt.title(f"Prophet Forecast for {variable} (2006-2021)")
+    plt.xlabel("Year")
+    plt.ylabel(variable)
     plt.show()
 
     return forecast
-
 
 # Residual diagnostics
 def plot_residual_diagnostics(residuals):
@@ -276,7 +265,6 @@ plt.figure(figsize=(8, 6))
 sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
 plt.title('Correlation Heatmap: Explicit and Implicit Scores')
 plt.show()
-
 
 
 # Does yearly unemployment rates and GINI precede Racial exposure and diversity
